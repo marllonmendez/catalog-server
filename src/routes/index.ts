@@ -16,7 +16,12 @@ export async function Routes(app: FastifyInstance) {
       // Acessa os valores dos campos.
       const fields = data.fields as { [key: string]: { value: string } }
       const name = fields.name.value
-      const price = Number(fields.price.value)
+      const priceString = fields.price.value
+        .replace('R$ ', '')
+        .replace(/\./g, '')
+        .replace(',', '.')
+        .trim()
+      const price = parseFloat(priceString)
 
       // Descreve o formato esperado dos dados conforme o schema.
       const createProductSchema = z.object({
