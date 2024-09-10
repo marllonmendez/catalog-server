@@ -1,6 +1,8 @@
 import { FastifyInstance } from 'fastify'
 import { z, ZodError } from 'zod'
 import dayjs from 'dayjs'
+import slugify from 'slugify'
+
 import prisma from '../services/prisma'
 import cloudinary from '../services/cloudinary'
 
@@ -18,7 +20,7 @@ export async function Routes(app: FastifyInstance) {
       const name = fields.name.value
       const priceString = fields.price.value
         .replace('R$ ', '')
-        .replace(/\./g, '')
+        .replace('.', '')
         .replace(',', '.')
         .trim()
       const price = parseFloat(priceString)
@@ -31,6 +33,9 @@ export async function Routes(app: FastifyInstance) {
 
       // Faz a validação dos dados e verifica se eles correspondem às regras definidas no schema.
       const validatedData = createProductSchema.parse({ name, price })
+
+      // Geração do Slug do Produto.
+      const slug = slugify(validatedData.name, { lower: true, strict: true })
 
       // Faz o upload da imagem para o Cloudinary.
       const uploadImageToCloudinary = () => {
@@ -67,6 +72,7 @@ export async function Routes(app: FastifyInstance) {
           name: validatedData.name,
           price: validatedData.price,
           image: uploadImage.secure_url,
+          slug: slug,
           created_at: today,
         },
       })
@@ -92,10 +98,44 @@ export async function Routes(app: FastifyInstance) {
           name: true,
           price: true,
           image: true,
+          slug: true,
         },
       })
 
       return res.status(200).send(products);
+    } catch (err: any) {
+      return res.status(500).send({ message: err.message })
+    }
+  })
+
+  app.get('/product/:slug', async (req, res) => {
+    try {
+      const { slug } = req.params as { slug: string }
+      const product = await prisma.product.findUnique({
+        where: { slug }
+      })
+      if (!product) {
+        return res.status(404).send({message: 'Produto não encontrado'})
+      }
+      return res.status(200).send(product)
+    } catch (err: any) {
+      return res.status(500).send({message: err.message})
+    }
+  })
+
+  app.put('/product/:slug', async (req, res) => {
+    try {
+      const { slug } = req.params as { slug: string }
+      const { name, price } = req.body as { name: string, price: number }
+
+      const newSlug = slugify(name, { lower: true, strict: true })
+
+      const updated = await prisma.product.update({
+        where: { slug },
+        data: { name, price, slug: newSlug },
+      })
+
+      return res.status(200).send(updated)
     } catch (err: any) {
       return res.status(500).send({ message: err.message })
     }

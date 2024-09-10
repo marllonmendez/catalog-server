@@ -11,10 +11,11 @@ datasource db {
 }
 
 model Product {
-  id         Int      @id @default(autoincrement())
+  id         String   @id @unique @default(uuid())
   name       String   @unique
   price      Decimal  @db.Money
   image      String
+  slug       String   @unique
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
