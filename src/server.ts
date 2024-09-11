@@ -6,9 +6,7 @@ import { Routes } from './routes'
 
 const app = fastify()
 
-app.register(cors, {
-  origin: '*',
-})
+app.register(cors)
 app.register(multipart)
 app.register(Routes)
 

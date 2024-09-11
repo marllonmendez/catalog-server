@@ -35,13 +35,13 @@ export async function Routes(app: FastifyInstance) {
       const validatedData = createProductSchema.parse({ name, price })
 
       // Geração do Slug do Produto.
-      const slug = slugify(validatedData.name, { lower: true, strict: true })
+      const slug = slugify(validatedData.name, { lower: true, strict: true }).replace('percent', '')
 
       // Faz o upload da imagem para o Cloudinary.
       const uploadImageToCloudinary = () => {
         return new Promise<{ secure_url: string }>((resolve, reject) => {
           const stream = cloudinary.v2.uploader.upload_stream(
-            { resource_type: 'image' },
+            { folder: 'catalog', resource_type: 'image', },
             (error, result) => {
               if (error || !result) {
                 reject(new Error('Falha no upload da imagem!'))
@@ -111,12 +111,15 @@ export async function Routes(app: FastifyInstance) {
   app.get('/product/:slug', async (req, res) => {
     try {
       const { slug } = req.params as { slug: string }
+
       const product = await prisma.product.findUnique({
         where: { slug }
       })
+
       if (!product) {
         return res.status(404).send({message: 'Produto não encontrado'})
       }
+
       return res.status(200).send(product)
     } catch (err: any) {
       return res.status(500).send({message: err.message})
@@ -128,7 +131,7 @@ export async function Routes(app: FastifyInstance) {
       const { slug } = req.params as { slug: string }
       const { name, price } = req.body as { name: string, price: number }
 
-      const newSlug = slugify(name, { lower: true, strict: true })
+      const newSlug = slugify(name, { lower: true, strict: true }).replace('percent', '')
 
       const updated = await prisma.product.update({
         where: { slug },
@@ -136,6 +139,35 @@ export async function Routes(app: FastifyInstance) {
       })
 
       return res.status(200).send(updated)
+    } catch (err: any) {
+      return res.status(500).send({ message: err.message })
+    }
+  })
+
+  app.delete('/product/:slug', async (req, res) => {
+    try {
+      const { slug } = req.params as { slug: string }
+
+      const product = await prisma.product.findUnique({
+        where: { slug }
+      })
+
+      if (!product) {
+        return res.status(404).send({message: 'Produto não encontrado'})
+      }
+
+      const image = product.image
+      const publicId = image.split('/').slice(-1)[0].split('.')[0]
+
+      await cloudinary.v2.api.delete_resources([`catalog/${publicId}`], {
+        type: 'upload', resource_type: 'image'
+      })
+
+      const productDeleted = await prisma.product.delete({
+        where: { slug },
+      })
+
+      return res.status(200).send(productDeleted)
     } catch (err: any) {
       return res.status(500).send({ message: err.message })
     }
