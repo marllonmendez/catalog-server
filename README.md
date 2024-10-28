@@ -60,7 +60,7 @@ API desenvolvida para o projeto [Digital Catalog](https://github.com/marllonmend
   ```
 
 
-- **Removerns Produto**
+- **Remover Produto**
   -   **Método:** DELETE
   -   **Endpoint:** `/product/:slug`
   -   **Descrição:** Remove um produto com base no slug fornecido.
