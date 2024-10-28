@@ -1,11 +1,12 @@
 {
   "name": "catalog-server",
-  "version": "1.5.0",
-  "type": "module",
-  "main": "src/routes/index.ts",
+  "version": "1.5.1",
+  "main": "src/server.ts",
   "scripts": {
     "dev": "nodemon --exec tsx src/server.ts",
-    "vercel-build": "npx prisma migrate deploy"
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "vercel-build": "npm run build && npx prisma migrate deploy"
   },
   "author": "marllonmendez",
   "license": "MIT",
