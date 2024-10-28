@@ -26,7 +26,7 @@ API desenvolvida para o projeto [Digital Catalog](https://github.com/marllonmend
 - **Criar Produto**
   -   **Método:** POST
   -   **Endpoint:** `/product`
-  -   **Descrição:** Cria um novo produto com base nos dados fornecidos no corpo da requisição e no arquivo de imagem enviado. É necessário fornecer um token de autenticação válido no cabeçalho da requisição.
+  -   **Descrição:** Cria um novo produto com base nos dados fornecidos no corpo da requisição e no arquivo de imagem enviado.
   -   **Corpo da Requisição:** Multipart Form Data
     -   `name`: Nome do produto (string)
     -   `price`: Preço do produto (string)
