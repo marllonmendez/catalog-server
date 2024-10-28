@@ -1,34 +1,30 @@
 {
   "name": "catalog-server",
-  "version": "1.4.0",
+  "version": "1.4.0-dev",
+  "type": "module",
   "main": "src/routes/index.ts",
-  "engines": {
-    "node": "18"
-  },
   "scripts": {
-    "dev": "tsx src/server.ts",
-    "build": "tsup src",
-    "start": "node dist/server.js"
+    "dev": "nodemon --exec tsx src/server.ts",
+    "vercel-build": "npx prisma migrate deploy"
   },
   "author": "marllonmendez",
   "license": "MIT",
   "description": "API Digital Catalog",
   "dependencies": {
+    "@fastify/cors": "^9.0.1",
+    "@fastify/multipart": "^8.3.0",
+    "@prisma/client": "^5.17.0",
     "cloudinary": "^2.4.0",
     "dayjs": "^1.11.12",
     "fastify": "^4.28.1",
     "slugify": "^1.6.6",
-    "tsup": "^6.7.0",
-    "tsx": "^4.16.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@fastify/cors": "^9.0.1",
-    "@fastify/multipart": "^8.3.0",
-    "@prisma/client": "^5.17.0",
     "@types/node": "^22.5.3",
+    "nodemon": "^3.1.7",
     "prisma": "^5.19.1",
-    "ts-node": "^10.9.2",
+    "tsx": "^4.16.5",
     "typescript": "^5.5.4"
   }
 }
