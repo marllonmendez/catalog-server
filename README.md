@@ -21,10 +21,52 @@ API desenvolvida para o projeto [Digital Catalog](https://github.com/marllonmend
 
 ## Funcionalidades
 
-- Criação de Produto
-- Listagem de Produtos
-- Exclusão de Produtos
-- Edição/Atualização de Produtos
+### Produtos
+
+- **Criar Produto**
+  -   **Método:** POST
+  -   **Endpoint:** `/product`
+  -   **Descrição:** Cria um novo produto com base nos dados fornecidos no corpo da requisição e no arquivo de imagem enviado. É necessário fornecer um token de autenticação válido no cabeçalho da requisição.
+  -   **Corpo da Requisição:** Multipart Form Data
+    -   `name`: Nome do produto (string)
+    -   `price`: Preço do produto (string)
+    -   `image`: Arquivo de imagem do produto (file) (tamanho maximo: 3 mb)
+
+
+- **Buscar Produto**
+  -   **Método:** GET
+  -   **Endpoint:** `/product/:slug`
+  -   **Descrição:** Retorna um produto com base no slug fornecido.
+  ```bash
+    /product/miniatura-hot-wheels-dodge-charger-hellcat
+  ```
+
+
+- **Listar Produtos**
+  -   **Método:** GET
+  -   **Endpoint:** `/products`
+  -   **Descrição:** Retorna uma lista de todos os produtos.
+
+
+- **Atualizar Produto**
+  -   **Método:** PUT
+  -   **Endpoint:** `/product/:slug`
+  -   **Descrição:** Atualiza um produto com base no slug fornecido.
+  ```json
+    {
+      "name": "Miniatura Hot Wheels Dodge Charger Hellcat",
+      "price": "4.99"
+    }
+  ```
+
+
+- **Removerns Produto**
+  -   **Método:** DELETE
+  -   **Endpoint:** `/product/:slug`
+  -   **Descrição:** Remove um produto com base no slug fornecido.
+  ```bash
+    /product/miniatura-hot-wheels-dodge-charger-hellcat
+  ```
 
 ## Guia de Instalação
 

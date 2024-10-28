@@ -1,6 +1,6 @@
 {
   "name": "catalog-server",
-  "version": "1.5.6",
+  "version": "1.5.7",
   "main": "src/server.ts",
   "scripts": {
     "dev": "nodemon --exec tsx src/server.ts",
