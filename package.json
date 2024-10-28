@@ -1,10 +1,10 @@
 {
   "name": "catalog-server",
-  "version": "1.5.4",
+  "version": "1.5.5",
   "main": "src/server.ts",
   "scripts": {
     "dev": "nodemon --exec tsx src/server.ts",
-    "vercel-build": "npm run build && npx prisma migrate deploy"
+    "vercel-build": "npx prisma migrate deploy"
   },
   "author": "marllonmendez",
   "license": "MIT",
