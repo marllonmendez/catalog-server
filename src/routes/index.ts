@@ -6,91 +6,119 @@ import slugify from 'slugify'
 import prisma from '../services/prisma'
 import cloudinary from '../services/cloudinary'
 
+const validateProduct = (name: string, price: string) => {
+  const createProductSchema = z.object({
+    name: z.string(),
+    price: z.number(),
+  })
+
+  const formattedPriceField = parseFloat(
+    price
+      .replace('R$ ', '')
+      .replace('.', '')
+      .replace(',', '.')
+      .trim()
+  )
+
+  return createProductSchema.parse({ name, price: formattedPriceField })
+}
+
+const generateSlug = (slug: string) => {
+  return slugify(slug, { lower: true, strict: true }).replace('percent', '')
+}
+
+const validateAndExtractData = async (request: any) => {
+  const data = await request.file()
+  if (!data || !data.file || !data.fields) {
+    throw new Error('A imagem e os campos do formulário são obrigatórios!')
+  }
+  return data
+}
+
+const checkProductExistsByName = async (name: string) => {
+  const findProductName = await prisma.product.findUnique({
+    where: { name },
+  })
+
+  if (findProductName) {
+    throw new Error('O Produto já está cadastrado!')
+  }
+}
+
+const checkProductExistsBySlug = async (slug: string, reply: any) => {
+  const findProductSlug = await prisma.product.findUnique({
+    where: { slug },
+  })
+
+  if (!findProductSlug) {
+    return reply.status(404).send({message: 'Produto não encontrado'})
+  }
+
+  return findProductSlug
+}
+
+const uploadImageToCloudinary = (file: any) => {
+  return new Promise<{ secure_url: string }>((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: 'catalog',
+        resource_type: 'image',
+        transformation: [
+          {
+            width: 500,
+            height: 500,
+            crop: 'fill'
+          }
+        ]
+      },
+      (error, result) => {
+        if (error || !result) {
+          reject(new Error('Falha no upload da imagem!'))
+        } else {
+          resolve(result)
+        }
+      }
+    )
+    file.pipe(stream)
+  })
+}
+
 export async function Routes(app: FastifyInstance) {
-  app.post('/product', async (req, res) => {
+  app.post('/product', async (request, reply) => {
     try {
-      // Captura o arquivo e os campos do formulário.
-      const data = await req.file()
-      if (!data) {
-        throw new Error('A imagem é obrigatória!')
-      }
-
-      // Acessa os valores dos campos.
+      const data = await validateAndExtractData(request)
       const fields = data.fields as { [key: string]: { value: string } }
-      const name = fields.name.value
-      const priceString = fields.price.value
-        .replace('R$ ', '')
-        .replace('.', '')
-        .replace(',', '.')
-        .trim()
-      const price = parseFloat(priceString)
+      const { name, price } = fields
+      const validated = validateProduct(name.value, price.value)
 
-      // Descreve o formato esperado dos dados conforme o schema.
-      const createProductSchema = z.object({
-        name: z.string(),
-        price: z.number(),
-      })
-
-      // Faz a validação dos dados e verifica se eles correspondem às regras definidas no schema.
-      const validatedData = createProductSchema.parse({ name, price })
-
-      // Geração do Slug do Produto.
-      const slug = slugify(validatedData.name, { lower: true, strict: true }).replace('percent', '')
-
-      // Faz o upload da imagem para o Cloudinary.
-      const uploadImageToCloudinary = () => {
-        return new Promise<{ secure_url: string }>((resolve, reject) => {
-          const stream = cloudinary.v2.uploader.upload_stream(
-            { folder: 'catalog', resource_type: 'image', },
-            (error, result) => {
-              if (error || !result) {
-                reject(new Error('Falha no upload da imagem!'))
-              } else {
-                resolve(result)
-              }
-            }
-          )
-          data.file.pipe(stream)
-        })
-      }
-
-      const uploadImage = await uploadImageToCloudinary()
+      await checkProductExistsByName(validated.name)
+      const uploadImage = await uploadImageToCloudinary(data.file)
       const today = dayjs().toDate()
 
-      // Verifica se o produto já existe com base no nome, que deve ser único.
-      const possibleProduct = await prisma.product.findUnique({
-        where: { name: validatedData.name },
-      })
-
-      if (possibleProduct) {
-        throw new Error('O Produto já está cadastrado!')
-      }
-
-      // Cria o novo produto no banco de dados.
       await prisma.product.create({
         data: {
-          name: validatedData.name,
-          price: validatedData.price,
+          name: validated.name,
+          price: validated.price,
           image: uploadImage.secure_url,
-          slug: slug,
+          slug: generateSlug(validated.name),
           created_at: today,
         },
       })
 
-      return res.status(200).send({ message: 'Produto criado com sucesso' });
+      return reply.status(200).send({ message: 'Produto criado com sucesso' })
     } catch (err: any) {
       if (err instanceof ZodError) {
-        return res.status(400).send({
+        return reply.status(400).send({
           validationError: true,
           message: 'Erro de validação',
           fields: err.errors.map(error => error.path.join('.')),
         })
       }
-      return res.status(500).send({ message: err.message });
+      return reply.status(500).send({ message: err.message });
     }
   })
 
-  app.get('/products', async (req, res) => {
+  app.get('/products', async (_, reply) => {
     try {
       const products = await prisma.product.findMany({
         select: {
@@ -102,64 +130,52 @@ export async function Routes(app: FastifyInstance) {
         },
       })
 
-      return res.status(200).send(products);
+      return reply.status(200).send(products);
     } catch (err: any) {
-      return res.status(500).send({ message: err.message })
+      return reply.status(500).send({ message: err.message })
     }
   })
 
-  app.get('/product/:slug', async (req, res) => {
+  app.get('/product/:slug', async (request, reply) => {
     try {
-      const { slug } = req.params as { slug: string }
+      const { slug } = request.params as { slug: string }
 
-      const product = await prisma.product.findUnique({
-        where: { slug }
-      })
+      const product = await checkProductExistsBySlug(slug, reply)
 
-      if (!product) {
-        return res.status(404).send({message: 'Produto não encontrado'})
-      }
-
-      return res.status(200).send(product)
+      return reply.status(200).send(product)
     } catch (err: any) {
-      return res.status(500).send({message: err.message})
+      return reply.status(500).send({message: err.message})
     }
   })
 
-  app.put('/product/:slug', async (req, res) => {
+  app.put('/product/:slug', async (request, reply) => {
     try {
-      const { slug } = req.params as { slug: string }
-      const { name, price } = req.body as { name: string, price: number }
-
-      const newSlug = slugify(name, { lower: true, strict: true }).replace('percent', '')
+      const { slug } = request.params as { slug: string }
+      const { name, price } = request.body as { name: string, price: number }
 
       const updated = await prisma.product.update({
         where: { slug },
-        data: { name, price, slug: newSlug },
+        data: {
+          name,
+          price,
+          slug: generateSlug(name)
+        },
       })
 
-      return res.status(200).send(updated)
+      return reply.status(200).send(updated)
     } catch (err: any) {
-      return res.status(500).send({ message: err.message })
+      return reply.status(500).send({ message: err.message })
     }
   })
 
-  app.delete('/product/:slug', async (req, res) => {
+  app.delete('/product/:slug', async (request, reply) => {
     try {
-      const { slug } = req.params as { slug: string }
+      const { slug } = request.params as { slug: string }
 
-      const product = await prisma.product.findUnique({
-        where: { slug }
-      })
+      const product = await checkProductExistsBySlug(slug, reply)
+      const publicId = product.image.split('/').slice(-1)[0].split('.')[0]
 
-      if (!product) {
-        return res.status(404).send({message: 'Produto não encontrado'})
-      }
-
-      const image = product.image
-      const publicId = image.split('/').slice(-1)[0].split('.')[0]
-
-      await cloudinary.v2.api.delete_resources([`catalog/${publicId}`], {
+      await cloudinary.api.delete_resources([`catalog/${publicId}`], {
         type: 'upload', resource_type: 'image'
       })
 
@@ -167,9 +183,9 @@ export async function Routes(app: FastifyInstance) {
         where: { slug },
       })
 
-      return res.status(200).send(productDeleted)
+      return reply.status(200).send(productDeleted)
     } catch (err: any) {
-      return res.status(500).send({ message: err.message })
+      return reply.status(500).send({ message: err.message })
     }
   })
 }
